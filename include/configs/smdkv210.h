@@ -79,7 +79,7 @@
 /*
  * select serial console configuration
  */
-#define CONFIG_SERIAL2			1	/* use SERIAL 0 on SMDKC100 */
+#define CONFIG_SERIAL0			1	/* use SERIAL 0 on SMDKC100 */
 
 /* PWM */
 #define CONFIG_PWM			1
@@ -115,6 +115,10 @@
 #undef CONFIG_CMD_NAND
 
 #define CONFIG_CMD_MMC
+#define CONFIG_CMD_FAT
+#define CONFIG_CMD_EXT4
+#define CONFIG_CMD_EXT2
+
 #define CONFIG_CMD_CACHE
 #define CONFIG_CMD_REGINFO
 /*#define CONFIG_CMD_ONENAND*/
@@ -138,8 +142,6 @@
 
 #define NORMAL_MTDPARTS_DEFAULT MTDPARTS_DEFAULT
 
-#define CONFIG_BOOTCOMMAND	"run ubifsboot"
-
 #define CONFIG_RAMDISK_BOOT	"root=/dev/ram0 rw rootfstype=ext2" \
 				" console=ttySAC0,115200n8" \
 				" mem=128M"
@@ -156,46 +158,73 @@
 
 #define CONFIG_ENV_OVERWRITE
 #define CONFIG_EXTRA_ENV_SETTINGS					\
-	CONFIG_UPDATEB \
-	"updatek=" \
-		"onenand erase 0x60000 0x300000;" \
-		"onenand write 0x31008000 0x60000 0x300000\0" \
-	"updateu=" \
-		"onenand erase block 147-4095;" \
-		"onenand write 0x32000000 0x1260000 0x8C0000\0" \
-	"bootk=" \
-		"onenand read 0x30007FC0 0x60000 0x300000;" \
-		"bootm 0x30007FC0\0" \
-	"flashboot=" \
-		"set bootargs root=/dev/mtdblock${bootblock} " \
-		"rootfstype=${rootfstype} " \
-		"ubi.mtd=${ubiblock} ${opts} " CONFIG_COMMON_BOOT ";" \
-		"run bootk\0" \
-	"ubifsboot=" \
-		"set bootargs root=ubi0!rootfs rootfstype=ubifs " \
-		" ubi.mtd=${ubiblock} ${opts} " CONFIG_COMMON_BOOT "; " \
-		"run bootk\0" \
-	"boottrace=setenv opts initcall_debug; run bootcmd\0" \
-	"android=" \
-		"set bootargs root=ubi0!ramdisk ubi.mtd=${ubiblock} " \
-		"rootfstype=ubifs init=/init.sh " CONFIG_COMMON_BOOT "; " \
-		"run bootk\0" \
-	"nfsboot=" \
-		"set bootargs root=/dev/nfs ubi.mtd=${ubiblock} " \
-		"nfsroot=${nfsroot},nolock " \
-		"ip=${ipaddr}:${serverip}:${gatewayip}:" \
-		"${netmask}:nowplus:usb0:off " CONFIG_COMMON_BOOT "; " \
-		"run bootk\0" \
-	"ramboot=" \
-		"set bootargs " CONFIG_RAMDISK_BOOT \
-		" initrd=0x33000000,8M ramdisk=8192\0" \
-	"rootfstype=cramfs\0" \
-	"mtdparts=" MTDPARTS_DEFAULT "\0" \
-	"meminfo=mem=128M\0" \
-	"nfsroot=/nfsroot/arm\0" \
-	"bootblock=5\0" \
-	"ubiblock=4\0" \
-	"ubi=enabled"
+	"loadaddr=0x30008000\0" \
+	"image=zImage\0" \
+	"baudrate=115200n8\0" \
+	"console=ttySAC0\0" \
+	"ipaddr=192.168.0.110\0" \
+	"gatewayip=192.168.0.1\0" \
+	"netmask=255.255.255.0\0" \
+	"serverip=192.168.0.101\0" \
+	"boot_fdt=no\0" \
+	"mmcdev=1\0" \
+	"mmcpart=1\0" \
+	"mmcroot=/dev/mmcblk1p2 rootwait rw\0" \
+	"mmcargs=setenv bootargs console=${console},${baudrate} " \
+		"root=${mmcroot}\0" \
+	"loadimage=fatload mmc ${mmcdev}:${mmcpart} ${loadaddr} ${image}\0" \
+	"loadfdt=fatload mmc ${mmcdev}:${mmcpart} ${fdt_addr} ${fdt_file}\0" \
+	"mmcboot=echo Booting from mmc ...; " \
+		"run mmcargs; " \
+		"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
+			"if run loadfdt; then " \
+				"bootz ${loadaddr} - ${fdt_addr}; " \
+			"else " \
+				"if test ${boot_fdt} = try; then " \
+					"bootz; " \
+				"else " \
+					"echo WARN: Cannot load the DT; " \
+				"fi; " \
+			"fi; " \
+		"else " \
+			"bootz ${loadaddr}; " \
+		"fi;\0" \
+	"rootpath=/home/lincor/s5pv210/rootfs\0" \
+	"nfsroot=${serverip}:${rootpath}\0" \
+	"netdev=eth0\0" \
+	"nfsargs=setenv bootargs console=${console},${baudrate} " \
+		"root=/dev/nfs rootwait rw ${nfsroot} " \
+		"ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}:${hostname}:${netdev}:off \0" \
+	"nfsboot=echo Booting from net ...; " \
+			"run nfsargs; " \
+			"tftp ${loadaddr} ${image}; " \
+			"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
+				"if tftp ${fdt_addr} ${fdt_file}; then " \
+					"bootz ${loadaddr} - ${fdt_addr}; " \
+				"else " \
+					"if test ${boot_fdt} = try; then " \
+						"bootz; " \
+					"else " \
+						"echo WARN: Cannot load the DT; " \
+					"fi; " \
+				"fi; " \
+			"else " \
+				"bootz ${loadaddr}; " \
+			"fi;\0"
+
+#define CONFIG_BOOTCOMMAND \
+	   "mmc dev ${mmcdev};" \
+	   "mmc dev ${mmcdev}; if mmc rescan; then " \
+		   "if run loadbootscript; then " \
+			   "run bootscript; " \
+		   "else " \
+			   "if run loadimage; then " \
+				   "run mmcboot; " \
+			   "else run nfsboot; " \
+			   "fi; " \
+		   "fi; " \
+	   "else run nfsboot; fi"
+
 
 /*
  * Miscellaneous configurable options

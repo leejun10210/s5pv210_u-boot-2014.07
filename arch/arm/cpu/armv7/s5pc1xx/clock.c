@@ -347,6 +347,34 @@ void set_mmc_clk(int dev_index, unsigned int div)
 			break;
 		}
 	}
+#if 0
+#ifdef USE_MMC1
+		/* MMC1 clock src = SCLKMPLL */
+		tmp = CLK_SRC4_REG & ~(0x000000f0);
+		CLK_SRC4_REG = tmp | 0x00000060;
+	
+		/* MMC1 clock div */
+		tmp = CLK_DIV4_REG & ~(0x000000f0);
+		CLK_DIV4_REG = tmp | i<<4;
+#endif	
+	
+		/* MMC2 clock src = SCLKMPLL */
+		tmp = CLK_SRC4_REG & ~(0x00000f00);
+		CLK_SRC4_REG = tmp | 0x00000600;
+	
+		/* MMC2 clock div */
+		tmp = CLK_DIV4_REG & ~(0x00000f00);
+		CLK_DIV4_REG = tmp | i<<8;
+
+
+		/* MMC3 clock src = SCLKMPLL */
+		tmp = CLK_SRC4_REG & ~(0x00000f00);
+		CLK_SRC4_REG = tmp | 0x00000600;
+	
+		/* MMC3 clock div */
+		tmp = CLK_DIV4_REG & ~(0x00000f00);
+		CLK_DIV4_REG = tmp | i<<12;
+#endif		
 #endif /* CONFIG_S5PC110 */
 
 

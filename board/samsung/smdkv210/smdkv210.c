@@ -78,7 +78,6 @@ static int setup_hsmmc_gpio(bd_t *bis)
 	ret = s5p_mmc_init(0, 8);
 	if (ret)
 		error("MMC: Failed to init MMC:0.\n");
-
 	/*
 	 * MMC2 -> SD card 1 (T_FLASH) 
 	  * MMC2 GPIO
@@ -118,8 +117,6 @@ static int setup_hsmmc_gpio(bd_t *bis)
 	ret_sd2 = s5p_mmc_init(3, 4);
 	if (ret_sd2)
 		error("MMC: Failed to init SD card (MMC:3).\n");
-
-
 	return ret & ret_sd1 & ret_sd2;
 
 }
